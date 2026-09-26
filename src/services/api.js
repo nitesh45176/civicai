@@ -10,7 +10,11 @@
 
 import * as mockApi from "./mockApi";
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api";
+let rawApiUrl = (import.meta.env.VITE_API_BASE_URL || "http://localhost:8000/api").trim().replace(/\/+$/, "");
+if (!rawApiUrl.endsWith("/api")) {
+  rawApiUrl = `${rawApiUrl}/api`;
+}
+const API_BASE_URL = rawApiUrl;
 const BACKEND_ORIGIN = API_BASE_URL.replace(/\/api\/?$/, "");
 
 // Check if running on HTTPS host (e.g. Vercel) while configured to HTTP localhost (which is blocked by browser mixed content rules)
