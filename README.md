@@ -923,16 +923,10 @@ CivicAI addresses this through a combination of:
 - Automated email escalation
 - Municipal authority dashboards
 
----
-
-## 👥 Team CodeNova
-
-Built by Team CodeNova for the HackIndia 2026 AI & Web3 Builders Hackathon.
 
 ---
 
 ## 📄 License
 
-This project was developed as a hackathon prototype.
 
 Refer to the repository for the applicable project license and usage terms.
