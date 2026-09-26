@@ -37,12 +37,17 @@ class ComplaintResponse(BaseModel):
     status: str
     created_at: datetime
     updated_at: datetime
+    sla_deadline: Optional[datetime] = None
+    last_escalation_at: Optional[datetime] = None
+    escalation_count: int = 0
     authority: Optional[AuthorityResponse] = None
     status_history: List[StatusHistoryResponse] = []
+    sla_status: str = "NO_SLA"
+    hours_remaining: float | None = None
 
     model_config = ConfigDict(from_attributes=True)
 
-    @field_serializer("created_at", "updated_at", when_used="json")
+    @field_serializer("created_at", "updated_at", "sla_deadline","last_escalation_at",when_used="json")
     def serialize_datetime(self, dt: Optional[datetime]) -> Optional[str]:
         if dt is None:
             return None

@@ -9,6 +9,30 @@ from app.services.cloudinary_service import upload_image
 from app.services.ai_service import analyze_image_with_llm
 from app.services.authority_service import resolve_or_create_authority
 from app.utils.validators import validate_coordinates
+from app.services.cv_service import detect_civic_issue
+
+
+CV_CONFIDENCE_THRESHOLD = 0.60
+
+CV_CATEGORY_MAP = {
+    "pothole": {
+        "issue_type": "pothole",
+        "category": "road_infrastructure",
+    },
+    "garbage": {
+        "issue_type": "garbage",
+        "category": "sanitation",
+    },
+    "fallen_tree": {
+        "issue_type": "fallen_tree",
+        "category": "horticulture_and_parks",
+    },
+    "damaged_electrical": {
+        "issue_type": "damaged_electrical",
+        "category": "electrical",
+    },
+}
+
 
 router = APIRouter(prefix="/analyze", tags=["Analyze"])
 
@@ -38,25 +62,53 @@ async def analyze_civic_issue(
     # 2. Upload image to Cloudinary (or local storage fallback)
     image_url = await upload_image(image)
 
+    cv_result = detect_civic_issue(image_url)
+    print("[CV] Detection:", cv_result)
+    
     # 3. Analyze with Multimodal AI
     ai_result = await analyze_image_with_llm(
-        image_url=image_url,
-        optional_text=optional_text,
-        latitude=latitude,
-        longitude=longitude
-    )
+    image_url=image_url,
+    optional_text=optional_text,
+    latitude=latitude,
+    longitude=longitude
+)
+
+    # Use specialized CV classification when confidence is high.
+    final_issue_type = ai_result.issue_type
+    final_category = ai_result.category
+    classification_source = "groq"
+
+    if cv_result["confidence"] >= CV_CONFIDENCE_THRESHOLD:
+        cv_mapping = CV_CATEGORY_MAP.get(cv_result["category"])
+
+        if cv_mapping:
+            final_issue_type = cv_mapping["issue_type"]
+            final_category = cv_mapping["category"]
+            classification_source = "cv"
+
+            print(
+                f"[HYBRID] Using CV classification: "
+                f"{final_issue_type} ({cv_result['confidence']:.2f})"
+            )
+        else:
+            print("[HYBRID] CV detected unknown mapping; using Groq classification.")
+    else:
+        print(
+            f"[HYBRID] CV confidence too low "
+            f"({cv_result['confidence']:.2f}); using Groq classification."
+        )
 
     # 4. Deterministically resolve or retrieve authority
     authority = resolve_or_create_authority(
         db=db,
-        issue_type=ai_result.issue_type,
-        category=ai_result.category
+        issue_type=final_issue_type,
+        category=final_category
     )
 
     # 5. Assemble and return response
     return AnalyzeResponse(
-        issue_type=ai_result.issue_type,
-        category=ai_result.category,
+        issue_type=final_issue_type,
+        category=final_category,
         severity=ai_result.severity,
         safety_risk=ai_result.safety_risk,
         description=ai_result.description,
@@ -68,5 +120,7 @@ async def analyze_civic_issue(
             department=authority.department
         ),
         location=LocationSimple(latitude=latitude, longitude=longitude) if (latitude or longitude) else None,
-        image_url=image_url
+        image_url=image_url,
+        cv_detection=cv_result,
+        classification_source=classification_source,
     )

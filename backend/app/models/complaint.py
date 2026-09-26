@@ -44,6 +44,22 @@ class Complaint(Base):
         nullable=False
     )
 
+    sla_deadline: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+        index=True
+    )
+
+    last_escalation_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True
+    )
+
+    escalation_count: Mapped[int] = mapped_column(
+        default=0,
+        nullable=False
+    )
+
     # Relationships
     authority: Mapped["Authority"] = relationship("Authority", back_populates="complaints")
     status_history: Mapped[List["StatusHistory"]] = relationship(

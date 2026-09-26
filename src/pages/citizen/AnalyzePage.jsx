@@ -1,21 +1,17 @@
 import React, { useState, useEffect } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import {
-  Sparkles,
   ArrowRight,
-  ShieldAlert,
   Building2,
   MapPin,
   CheckCircle2,
   Cpu,
-  Layers,
   Clock,
   Scan,
   RotateCcw,
 } from "lucide-react";
 import { PageHeader } from "../../components/PageHeader";
 import { Button } from "../../components/Button";
-import { StatusBadge } from "../../components/StatusBadge";
 import { SeverityBadge } from "../../components/SeverityBadge";
 import { LoadingState } from "../../components/LoadingState";
 import { ErrorState } from "../../components/ErrorState";
@@ -40,6 +36,12 @@ export function AnalyzePage() {
   const [aiResult, setAiResult] = useState(null);
   const [error, setError] = useState(null);
 
+  // Actual source-image dimensions used to correctly position YOLO boxes
+  const [imageDimensions, setImageDimensions] = useState({
+    width: 1,
+    height: 1,
+  });
+
   const ANALYSIS_MILESTONES = [
     "Running computer vision feature extraction on incident photo...",
     "Classifying hazard geometry, depth, and road obstruction...",
@@ -50,31 +52,37 @@ export function AnalyzePage() {
 
   useEffect(() => {
     if (!inputData?.image) {
-      // Redirect back to report if no image was provided
       navigate("/report", { replace: true });
       return;
     }
 
     let isMounted = true;
+
     setAnalyzing(true);
     setError(null);
     setAnalysisStep(0);
 
     // Step milestone animation
     const stepInterval = setInterval(() => {
-      setAnalysisStep((prev) => (prev < ANALYSIS_MILESTONES.length - 1 ? prev + 1 : prev));
+      setAnalysisStep((prev) =>
+        prev < ANALYSIS_MILESTONES.length - 1
+          ? prev + 1
+          : prev
+      );
     }, 280);
 
-    // Call analyzeIssue API (mock or FastAPI)
-    api.analyzeIssue({
-      image: inputData.image,
-      file: inputData.imageFile,
-      description: inputData.description,
-      location: inputData.location,
-      sampleId: inputData.selectedSampleId,
-    })
+    // Call analyzeIssue API
+    api
+      .analyzeIssue({
+        image: inputData.image,
+        file: inputData.imageFile,
+        description: inputData.description,
+        location: inputData.location,
+        sampleId: inputData.selectedSampleId,
+      })
       .then((res) => {
         if (!isMounted) return;
+
         if (res.success) {
           // Keep loading visible briefly for high-tech aesthetic
           setTimeout(() => {
@@ -92,7 +100,11 @@ export function AnalyzePage() {
       })
       .catch((err) => {
         if (!isMounted) return;
-        setError(err.message || "Network error during analysis.");
+
+        setError(
+          err.message || "Network error during analysis."
+        );
+
         setAnalyzing(false);
         clearInterval(stepInterval);
       });
@@ -108,8 +120,15 @@ export function AnalyzePage() {
       ...inputData,
       aiAnalysis: aiResult,
     };
-    sessionStorage.setItem("civicai_report_draft", JSON.stringify(reviewPayload));
-    navigate("/review", { state: reviewPayload });
+
+    sessionStorage.setItem(
+      "civicai_report_draft",
+      JSON.stringify(reviewPayload)
+    );
+
+    navigate("/review", {
+      state: reviewPayload,
+    });
   };
 
   if (!inputData?.image) {
@@ -134,39 +153,56 @@ export function AnalyzePage() {
               alt="Analyzing evidence"
               className="w-full h-80 object-cover object-center opacity-70 filter contrast-125"
             />
-            {/* Green / Blue Matrix scan line */}
+
+            {/* Scan line */}
             <div className="absolute inset-x-0 h-1 bg-gradient-to-r from-transparent via-blue-400 to-transparent shadow-[0_0_15px_#3b82f6] animate-scanline pointer-events-none" />
+
             <div className="absolute inset-0 bg-gradient-to-t from-slate-950/90 via-slate-950/30 to-transparent pointer-events-none" />
 
-            {/* Scanning HUD Overlays */}
+            {/* Scanning HUD */}
             <div className="absolute top-4 left-4 right-4 flex items-center justify-between text-2xs font-mono text-blue-300">
               <span className="flex items-center gap-1 bg-black/60 px-2 py-1 rounded backdrop-blur-xs">
                 <Scan className="w-3.5 h-3.5 text-blue-400 animate-pulse" />
                 OBJECT_DETECTION_ACTIVE
               </span>
+
               <span className="bg-black/60 px-2 py-1 rounded backdrop-blur-xs">
-                GPS: {inputData.location?.lat?.toFixed(4) || "28.6280"} N, {inputData.location?.lng?.toFixed(4) || "77.3649"} E
+                GPS:{" "}
+                {inputData.location?.lat?.toFixed(4) ||
+                  "28.6280"}{" "}
+                N,{" "}
+                {inputData.location?.lng?.toFixed(4) ||
+                  "77.3649"}{" "}
+                E
               </span>
             </div>
 
-            {/* Center Processing Radar */}
+            {/* Center Processing */}
             <div className="absolute inset-0 flex flex-col items-center justify-center text-center p-6 text-white">
               <div className="w-16 h-16 rounded-2xl bg-blue-600/90 border border-blue-400/40 backdrop-blur-md flex items-center justify-center text-white shadow-xl shadow-blue-500/30 mb-4 animate-pulse">
                 <Cpu className="w-8 h-8" />
               </div>
+
               <h3 className="text-xl font-bold tracking-tight">
                 Evaluating Incident Visuals
               </h3>
+
               <p className="text-xs text-blue-200 mt-2 font-mono max-w-md bg-slate-950/70 py-1.5 px-3 rounded-lg border border-blue-500/30 backdrop-blur-sm">
                 {ANALYSIS_MILESTONES[analysisStep]}
               </p>
             </div>
 
-            {/* Bottom Progress Bar */}
+            {/* Bottom Progress */}
             <div className="absolute bottom-0 inset-x-0 h-1.5 bg-slate-800">
               <div
                 className="h-full bg-blue-500 transition-all duration-300 ease-out"
-                style={{ width: `${((analysisStep + 1) / ANALYSIS_MILESTONES.length) * 100}%` }}
+                style={{
+                  width: `${
+                    ((analysisStep + 1) /
+                      ANALYSIS_MILESTONES.length) *
+                    100
+                  }%`,
+                }}
               />
             </div>
           </div>
@@ -191,35 +227,110 @@ export function AnalyzePage() {
             <div className="bg-emerald-50 border-b border-emerald-100 px-6 py-3 flex items-center justify-between flex-wrap gap-2">
               <div className="flex items-center gap-2 text-emerald-800 text-xs font-semibold">
                 <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-                <span>AI Vision Analysis Complete &bull; High Confidence ({Math.round((aiResult.confidenceScore || 0.95) * 100)}%)</span>
+
+                <span>
+                  {aiResult.classificationSource === "cv"
+                    ? `AI Vision Analysis Complete • CV Detection (${Math.round(
+                        (aiResult.confidenceScore || 0) * 100
+                      )}%)`
+                    : "AI Vision Analysis Complete • Multimodal AI Fallback"}
+                </span>
               </div>
+
               <span className="text-2xs font-mono text-emerald-700 bg-emerald-100/60 px-2 py-0.5 rounded font-medium">
-                Auto-Classified
+                {aiResult.classificationSource === "cv"
+                  ? "CV Classified"
+                  : "AI Classified"}
               </span>
             </div>
 
             <div className="p-6 sm:p-8">
               <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
-                {/* Left: Image with Vision Tags */}
+                {/* Left: Image */}
                 <div className="md:col-span-5 space-y-3">
                   <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-2xs group bg-slate-950">
                     <img
                       src={inputData.image}
                       alt="Analyzed incident"
                       className="w-full h-64 object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                      onLoad={(e) => {
+                        setImageDimensions({
+                          width: e.currentTarget.naturalWidth,
+                          height: e.currentTarget.naturalHeight,
+                        });
+                      }}
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
-                    
-                    {/* Bounding Box Visual Simulation */}
-                    <div className="absolute top-12 left-10 right-10 bottom-16 border-2 border-blue-400/90 rounded-lg pointer-events-none flex items-start justify-start p-1.5">
-                      <span className="text-3xs font-mono font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded">
-                        {aiResult.issueType} [{Math.round((aiResult.confidenceScore || 0.95) * 100)}%]
-                      </span>
-                    </div>
 
-                    <div className="absolute bottom-3 left-3 right-3 text-white text-xs">
-                      <p className="font-semibold">{aiResult.issueType}</p>
-                      <p className="text-2xs text-slate-300 truncate">{inputData.location?.address}</p>
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent pointer-events-none" />
+
+                    {/* ================================================= */}
+                    {/* REAL YOLO DETECTION BOXES                        */}
+                    {/* Only shown when CV classification was accepted.  */}
+                    {/* ================================================= */}
+
+                    {aiResult.classificationSource === "cv" &&
+                      aiResult.cvDetection?.detections?.map(
+                        (detection, index) => {
+                          if (!detection.bbox) {
+                            return null;
+                          }
+
+                          const [
+                            x1,
+                            y1,
+                            x2,
+                            y2,
+                          ] = detection.bbox;
+
+                          const left =
+                            (x1 / imageDimensions.width) * 100;
+
+                          const top =
+                            (y1 / imageDimensions.height) * 100;
+
+                          const width =
+                            ((x2 - x1) /
+                              imageDimensions.width) *
+                            100;
+
+                          const height =
+                            ((y2 - y1) /
+                              imageDimensions.height) *
+                            100;
+
+                          return (
+                            <div
+                              key={index}
+                              className="absolute border-2 border-blue-400 pointer-events-none"
+                              style={{
+                                left: `${left}%`,
+                                top: `${top}%`,
+                                width: `${width}%`,
+                                height: `${height}%`,
+                              }}
+                            >
+                              <span className="absolute -top-6 left-0 text-3xs font-mono font-bold bg-blue-600 text-white px-1.5 py-0.5 rounded whitespace-nowrap">
+                                {detection.category} [
+                                {Math.round(
+                                  detection.confidence * 100
+                                )}
+                                %]
+                              </span>
+                            </div>
+                          );
+                        }
+                      )}
+
+                    {/* Bottom Image Label */}
+                    <div className="absolute bottom-3 left-3 right-3 text-white text-xs pointer-events-none">
+                      <p className="font-semibold">
+                        {aiResult.issueType}
+                      </p>
+
+                      <p className="text-2xs text-slate-300 truncate">
+                        {inputData.location?.address ||
+                          "Location captured"}
+                      </p>
                     </div>
                   </div>
 
@@ -238,13 +349,22 @@ export function AnalyzePage() {
                   )}
                 </div>
 
-                {/* Right: Detected Diagnostics & Routing */}
+                {/* Right: Diagnostics & Routing */}
                 <div className="md:col-span-7 space-y-6">
-                  {/* Issue Type & Severity header */}
+                  {/* Issue Type & Severity */}
                   <div>
                     <div className="flex items-center gap-2 flex-wrap mb-2">
-                      <SeverityBadge severity={aiResult.severity} safetyRisk={aiResult.safetyRisk} size="md" showRiskLabel />
-                      <span className="text-xs text-slate-400 font-medium">&bull;</span>
+                      <SeverityBadge
+                        severity={aiResult.severity}
+                        safetyRisk={aiResult.safetyRisk}
+                        size="md"
+                        showRiskLabel
+                      />
+
+                      <span className="text-xs text-slate-400 font-medium">
+                        &bull;
+                      </span>
+
                       <span className="text-xs font-semibold text-slate-600 bg-slate-100 px-2 py-0.5 rounded-md">
                         {aiResult.category}
                       </span>
@@ -253,25 +373,31 @@ export function AnalyzePage() {
                     <h2 className="text-2xl font-bold text-slate-900 tracking-tight">
                       {aiResult.issueType}
                     </h2>
+
                     <p className="text-xs sm:text-sm text-slate-600 mt-2 leading-relaxed bg-slate-50 p-3.5 rounded-xl border border-slate-200/60">
                       {aiResult.description}
                     </p>
                   </div>
 
-                  {/* Responsible Authority Box */}
+                  {/* Responsible Authority */}
                   <div className="p-4 rounded-2xl bg-blue-50/60 border border-blue-200/80 flex items-start gap-3.5">
                     <div className="w-10 h-10 rounded-xl bg-blue-600 text-white flex items-center justify-center shrink-0 shadow-sm shadow-blue-500/20">
                       <Building2 className="w-5 h-5" />
                     </div>
+
                     <div className="flex-1 min-w-0">
                       <p className="text-2xs font-bold uppercase tracking-wider text-blue-600">
                         Responsible Municipal Authority
                       </p>
+
                       <h4 className="text-base font-bold text-slate-900 mt-0.5">
                         {aiResult.authority}
                       </h4>
+
                       <p className="text-xs text-slate-600 mt-1">
-                        Jurisdiction verified for road repair, structural remediation, and civic safety compliance.
+                        Jurisdiction verified for road repair,
+                        structural remediation, and civic safety
+                        compliance.
                       </p>
                     </div>
                   </div>
@@ -282,10 +408,16 @@ export function AnalyzePage() {
                       <span className="text-2xs text-slate-600 font-semibold block uppercase">
                         Geo-Coordinate Lock
                       </span>
+
                       <div className="flex items-center gap-1.5 mt-1 font-mono text-slate-800 font-medium">
                         <MapPin className="w-3.5 h-3.5 text-blue-600 shrink-0" />
+
                         <span className="truncate">
-                          {inputData.location?.lat?.toFixed(4)}, {inputData.location?.lng?.toFixed(4)}
+                          {inputData.location?.lat?.toFixed(4) ||
+                            "—"}
+                          ,{" "}
+                          {inputData.location?.lng?.toFixed(4) ||
+                            "—"}
                         </span>
                       </div>
                     </div>
@@ -294,8 +426,10 @@ export function AnalyzePage() {
                       <span className="text-2xs text-slate-600 font-semibold block uppercase">
                         Target Response SLA
                       </span>
+
                       <div className="flex items-center gap-1.5 mt-1 text-slate-800 font-semibold">
                         <Clock className="w-3.5 h-3.5 text-amber-600 shrink-0" />
+
                         <span>24 - 48 Hours</span>
                       </div>
                     </div>
@@ -307,7 +441,13 @@ export function AnalyzePage() {
             {/* Bottom Action Footer */}
             <div className="px-6 sm:px-8 py-4 bg-slate-50/80 border-t border-slate-200/80 flex flex-col sm:flex-row items-center justify-between gap-4">
               <Link to="/report">
-                <Button variant="ghost" size="md" leftIcon={<RotateCcw className="w-4 h-4" />}>
+                <Button
+                  variant="ghost"
+                  size="md"
+                  leftIcon={
+                    <RotateCcw className="w-4 h-4" />
+                  }
+                >
                   Re-upload Photo
                 </Button>
               </Link>
@@ -317,7 +457,9 @@ export function AnalyzePage() {
                 variant="primary"
                 size="lg"
                 onClick={handleProceedToReview}
-                rightIcon={<ArrowRight className="w-4 h-4" />}
+                rightIcon={
+                  <ArrowRight className="w-4 h-4" />
+                }
                 className="w-full sm:w-auto shadow-md shadow-blue-600/20 px-6 font-semibold"
               >
                 Review &amp; Submit Complaint

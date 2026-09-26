@@ -138,7 +138,9 @@ export async function analyzeIssue(data) {
       authority: json.authority?.name || "Public Works Department",
       authority_id: json.authority?.id || 1,
       image: formatImageUrl(json.image_url),
-      confidenceScore: 0.96,
+      confidenceScore: json.cv_detection?.confidence || 0,
+      cvDetection: json.cv_detection || null,
+      classificationSource: json.classification_source || "groq",
       tags: [json.issue_type, json.category, "AI-Verified"],
       location: data.location || {
         address: "Sector 62, Noida, UP",

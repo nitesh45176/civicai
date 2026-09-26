@@ -25,14 +25,20 @@ class Settings(BaseSettings):
         return ["http://localhost:5173", "http://127.0.0.1:5173"]
 
     # LLM Settings
-    LLM_API_KEY: str = ""
-    LLM_MODEL: str = "gemini-3.5-flash"
-    LLM_API_BASE_URL: str = "https://generativelanguage.googleapis.com/v1beta"
+    GROQ_API_KEY: str = ""
+    GROQ_MODEL: str = "qwen/qwen3.6-27b"
 
     # Cloudinary Settings
     CLOUDINARY_CLOUD_NAME: str = ""
     CLOUDINARY_API_KEY: str = ""
     CLOUDINARY_API_SECRET: str = ""
+
+    SMTP_HOST: str = ""
+    SMTP_PORT: int = 587
+    SMTP_USERNAME: str = ""
+    SMTP_PASSWORD: str = ""
+    SMTP_FROM_EMAIL: str = ""
+    SMTP_USE_TLS: bool = True
 
     # Image upload limits
     MAX_IMAGE_SIZE_MB: int = 10

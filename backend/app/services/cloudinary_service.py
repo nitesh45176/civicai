@@ -3,6 +3,8 @@ import uuid
 from fastapi import UploadFile, HTTPException, status
 from app.core.config import settings
 from app.utils.validators import validate_image_file, ALLOWED_IMAGE_MIME_TYPES
+from io import BytesIO
+from PIL import Image
 
 # Configure Cloudinary if credentials provided
 is_cloudinary_configured = bool(
@@ -33,6 +35,21 @@ async def upload_image(file: UploadFile) -> str:
 
     # Read content and check size
     contents = await file.read()
+
+    # Convert browser formats such as AVIF/WebP to JPEG
+    try:
+        image = Image.open(BytesIO(contents))
+        image = image.convert("RGB")
+
+        output = BytesIO()
+        image.save(output, format="JPEG", quality=90)
+        contents = output.getvalue()
+
+    except Exception as e:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Invalid image: {e}"
+        )
     max_bytes = settings.MAX_IMAGE_SIZE_MB * 1024 * 1024
     if len(contents) > max_bytes:
         raise HTTPException(

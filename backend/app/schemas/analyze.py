@@ -14,6 +14,8 @@ class AIAnalyzeResult(BaseModel):
     description: str
     complaint_title: str
     complaint_description: str
+    confidence_score: float = 0.0
+    tags: list[str] = []
 
 class AnalyzeResponse(BaseModel):
     issue_type: str
@@ -26,3 +28,5 @@ class AnalyzeResponse(BaseModel):
     authority: AuthoritySimple
     location: Optional[LocationSimple] = None
     image_url: str
+    cv_detection: Optional[dict] = None
+    classification_source: str

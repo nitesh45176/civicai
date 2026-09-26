@@ -15,6 +15,11 @@ class Authority(Base):
     department: Mapped[str] = mapped_column(String(150), nullable=False)
     category: Mapped[str] = mapped_column(String(100), nullable=False, index=True)
     area: Mapped[str] = mapped_column(String(100), default="Citywide", nullable=False)
+    email: Mapped[str] = mapped_column(
+    String(255),
+    nullable=False,
+    default="admin@civicai.local"
+)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True),
