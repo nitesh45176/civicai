@@ -59,10 +59,10 @@ async def analyze_civic_issue(
     # 1. Validate coordinates if provided
     validate_coordinates(latitude, longitude)
 
-    # 2. Upload image to Cloudinary (or local storage fallback)
-    image_url = await upload_image(image)
+    # 2. Upload image (always saved locally for YOLO, optionally to Cloudinary for display)
+    image_url, local_image_url = await upload_image(image)
 
-    cv_result = detect_civic_issue(image_url)
+    cv_result = detect_civic_issue(local_image_url)
     print("[CV] Detection:", cv_result)
     
     # 3. Analyze with Multimodal AI

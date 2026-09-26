@@ -26,10 +26,15 @@ if is_cloudinary_configured:
 UPLOAD_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "uploads")
 os.makedirs(UPLOAD_DIR, exist_ok=True)
 
-async def upload_image(file: UploadFile) -> str:
+async def upload_image(file: UploadFile) -> tuple[str, str]:
     """
-    Validates and uploads image to Cloudinary.
-    Falls back to local file storage if Cloudinary credentials are not configured.
+    Validates, processes, and uploads image.
+    Always saves locally for YOLO inference.
+    Uploads to Cloudinary for display if configured.
+
+    Returns:
+        (display_url, local_url) — display_url is Cloudinary or local,
+        local_url is always a /uploads/... path for YOLO.
     """
     validate_image_file(file, max_size_mb=settings.MAX_IMAGE_SIZE_MB)
 
@@ -61,7 +66,14 @@ async def upload_image(file: UploadFile) -> str:
     # Reset file pointer
     await file.seek(0)
 
-    # If Cloudinary is configured, upload to Cloudinary
+    # Always save locally for YOLO inference
+    filename = f"{uuid.uuid4().hex}.jpg"
+    filepath = os.path.join(UPLOAD_DIR, filename)
+    with open(filepath, "wb") as f:
+        f.write(contents)
+    local_url = f"/uploads/{filename}"
+
+    # If Cloudinary is configured, also upload for public display URL
     if is_cloudinary_configured:
         try:
             import cloudinary.uploader
@@ -70,18 +82,9 @@ async def upload_image(file: UploadFile) -> str:
                 folder="civicai/complaints",
                 resource_type="image"
             )
-            return upload_result.get("secure_url") or upload_result.get("url")
+            display_url = upload_result.get("secure_url") or upload_result.get("url")
+            return display_url, local_url
         except Exception as e:
-            # Fallback to local storage if Cloudinary API call fails
-            print(f"[Warning] Cloudinary upload failed: {e}. Falling back to local storage.")
+            print(f"[Warning] Cloudinary upload failed: {e}. Using local URL.")
 
-    # Local storage fallback
-    extension = ALLOWED_IMAGE_MIME_TYPES.get(file.content_type, ".jpg")
-    filename = f"{uuid.uuid4().hex}{extension}"
-    filepath = os.path.join(UPLOAD_DIR, filename)
-
-    with open(filepath, "wb") as f:
-        f.write(contents)
-
-    # Return local static URL path
-    return f"/uploads/{filename}"
+    return local_url, local_url
