@@ -64,63 +64,76 @@ def _resolve_image_path(image_url: str) -> Path:
     return image_path
 
 
+import torch
+
+
 def detect_civic_issue(
     image_url: str,
     confidence_threshold: float = 0.40,
 ) -> dict:
     """
-    Run CivicAI YOLO11n detection on a locally uploaded image.
+    Run CivicAI YOLO11n detection on a locally uploaded image or Cloudinary URL.
     """
+    try:
+        image_path = _resolve_image_path(image_url)
 
-    image_path = _resolve_image_path(image_url)
-
-    results = model.predict(
-        source=str(image_path),
-        conf=confidence_threshold,
-        verbose=False,
-    )
-
-    result = results[0]
-
-    detections = []
-
-    if result.boxes is not None:
-        for box in result.boxes:
-            class_id = int(box.cls[0])
-            confidence = float(box.conf[0])
-
-            detections.append(
-                {
-                    "category": CLASS_NAMES.get(
-                        class_id,
-                        "unknown",
-                    ),
-                    "confidence": round(confidence, 4),
-                    "bbox": [
-                        round(float(value), 2)
-                        for value in box.xyxy[0].tolist()
-                    ],
-                }
+        with torch.no_grad():
+            results = model.predict(
+                source=str(image_path),
+                conf=confidence_threshold,
+                device="cpu",
+                verbose=False,
             )
 
-    detections.sort(
-        key=lambda detection: detection["confidence"],
-        reverse=True,
-    )
+        result = results[0]
 
-    if not detections:
+        detections = []
+
+        if result.boxes is not None:
+            for box in result.boxes:
+                class_id = int(box.cls[0])
+                confidence = float(box.conf[0])
+
+                detections.append(
+                    {
+                        "category": CLASS_NAMES.get(
+                            class_id,
+                            "unknown",
+                        ),
+                        "confidence": round(confidence, 4),
+                        "bbox": [
+                            round(float(value), 2)
+                            for value in box.xyxy[0].tolist()
+                        ],
+                    }
+                )
+
+        detections.sort(
+            key=lambda detection: detection["confidence"],
+            reverse=True,
+        )
+
+        if not detections:
+            return {
+                "category": "unknown",
+                "confidence": 0.0,
+                "bbox": None,
+                "detections": [],
+            }
+
+        top_detection = detections[0]
+
+        return {
+            "category": top_detection["category"],
+            "confidence": top_detection["confidence"],
+            "bbox": top_detection["bbox"],
+            "detections": detections,
+        }
+    except Exception as err:
+        print(f"[Warning] CV detection failed: {err}")
         return {
             "category": "unknown",
             "confidence": 0.0,
             "bbox": None,
             "detections": [],
         }
-
-    top_detection = detections[0]
-
-    return {
-        "category": top_detection["category"],
-        "confidence": top_detection["confidence"],
-        "bbox": top_detection["bbox"],
-        "detections": detections,
-    }
