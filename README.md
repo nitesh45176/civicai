@@ -1,11 +1,5 @@
 # CivicAI — AI-Powered Municipal Grievance Redressal Platform
 
-> **Hackathon Team:** **CodeNova**
-> **Repository:** `HackIndiaXYZ/hackindia-ai-web3-builders-hackathon-2026-codenova`
-> **Track:** AI & Agentic Automation / Civic Infrastructure
-> **Hackathon:** HackIndia 2026 AI & Web3 Builders Hackathon
-
----
 
 ## 🏛️ Overview
 
