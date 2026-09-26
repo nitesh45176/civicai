@@ -1,11 +1,15 @@
+from io import BytesIO
 from pathlib import Path
+import urllib.request
 
+from PIL import Image, ImageOps
 from ultralytics import YOLO
 
 
 BASE_DIR = Path(__file__).resolve().parents[2]
 MODEL_PATH = BASE_DIR / "models" / "civicai_yolo11n_best.pt"
 UPLOAD_DIR = BASE_DIR / "uploads"
+UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 
 CLASS_NAMES = {
@@ -21,9 +25,33 @@ model = YOLO(str(MODEL_PATH))
 
 def _resolve_image_path(image_url: str) -> Path:
     """
-    Convert the local URL returned by upload_image()
-    into the actual filesystem path.
+    Convert the local URL or remote Cloudinary URL returned by upload_image()
+    into an actual filesystem path for YOLO inference.
     """
+    if image_url.startswith("http://") or image_url.startswith("https://"):
+        clean_url = image_url.split("?")[0]
+        filename = Path(clean_url).name
+        if not filename or not any(
+            filename.lower().endswith(ext)
+            for ext in [".jpg", ".jpeg", ".png", ".webp"]
+        ):
+            filename = f"remote_{abs(hash(image_url))}.jpg"
+
+        image_path = UPLOAD_DIR / filename
+        if not image_path.exists():
+            req = urllib.request.Request(
+                image_url,
+                headers={"User-Agent": "Mozilla/5.0"},
+            )
+            with urllib.request.urlopen(req) as resp:
+                data = resp.read()
+
+            image = Image.open(BytesIO(data))
+            image = ImageOps.exif_transpose(image)
+            image = image.convert("RGB")
+            image.save(image_path, format="JPEG", quality=90)
+
+        return image_path
 
     filename = Path(image_url).name
     image_path = UPLOAD_DIR / filename

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import {
   ArrowRight,
@@ -36,10 +36,21 @@ export function AnalyzePage() {
   const [aiResult, setAiResult] = useState(null);
   const [error, setError] = useState(null);
 
-  // Actual source-image dimensions used to correctly position YOLO boxes
+  // Actual source-image dimensions
   const [imageDimensions, setImageDimensions] = useState({
     width: 1,
     height: 1,
+  });
+
+  // Geometry of the actual image rendered inside the container.
+  // Needed because object-contain introduces letterboxing.
+  const imageContainerRef = useRef(null);
+
+  const [imageGeometry, setImageGeometry] = useState({
+    left: 0,
+    top: 0,
+    width: 100,
+    height: 100,
   });
 
   const ANALYSIS_MILESTONES = [
@@ -49,6 +60,76 @@ export function AnalyzePage() {
     "Identifying municipal division & jurisdictional department...",
     "Synthesizing structured civic complaint draft...",
   ];
+
+  /*
+   * Calculate where the real image is rendered inside the
+   * fixed-size container when using object-contain.
+   *
+   * YOLO coordinates are relative to the original image.
+   * We therefore need:
+   *
+   * original image
+   *      ↓
+   * object-contain scaling
+   *      ↓
+   * rendered image rectangle
+   *      ↓
+   * YOLO bbox mapped into that rectangle
+   */
+  useEffect(() => {
+    const updateImageGeometry = () => {
+      const container = imageContainerRef.current;
+
+      if (
+        !container ||
+        !imageDimensions.width ||
+        !imageDimensions.height
+      ) {
+        return;
+      }
+
+      const containerWidth = container.clientWidth;
+      const containerHeight = container.clientHeight;
+
+      if (!containerWidth || !containerHeight) {
+        return;
+      }
+
+      const scale = Math.min(
+        containerWidth / imageDimensions.width,
+        containerHeight / imageDimensions.height
+      );
+
+      const renderedWidth = imageDimensions.width * scale;
+      const renderedHeight = imageDimensions.height * scale;
+
+      const offsetX = (containerWidth - renderedWidth) / 2;
+      const offsetY = (containerHeight - renderedHeight) / 2;
+
+      setImageGeometry({
+        left: (offsetX / containerWidth) * 100,
+        top: (offsetY / containerHeight) * 100,
+        width: (renderedWidth / containerWidth) * 100,
+        height: (renderedHeight / containerHeight) * 100,
+      });
+    };
+
+    updateImageGeometry();
+
+    const container = imageContainerRef.current;
+
+    if (!container) {
+      return;
+    }
+
+    const resizeObserver = new ResizeObserver(updateImageGeometry);
+
+    resizeObserver.observe(container);
+
+    return () => {
+      resizeObserver.disconnect();
+    };
+  }, [imageDimensions]);
 
   useEffect(() => {
     if (!inputData?.image) {
@@ -248,11 +329,14 @@ export function AnalyzePage() {
               <div className="grid grid-cols-1 md:grid-cols-12 gap-8 items-start">
                 {/* Left: Image */}
                 <div className="md:col-span-5 space-y-3">
-                  <div className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-2xs group bg-slate-950">
+                  <div
+                    ref={imageContainerRef}
+                    className="relative rounded-2xl overflow-hidden border border-slate-200 shadow-2xs group bg-slate-950"
+                  >
                     <img
                       src={inputData.image}
                       alt="Analyzed incident"
-                      className="w-full h-64 object-cover object-center group-hover:scale-105 transition-transform duration-300"
+                      className="w-full h-64 object-contain object-center"
                       onLoad={(e) => {
                         setImageDimensions({
                           width: e.currentTarget.naturalWidth,
@@ -265,9 +349,7 @@ export function AnalyzePage() {
 
                     {/* ================================================= */}
                     {/* REAL YOLO DETECTION BOXES                        */}
-                    {/* Only shown when CV classification was accepted.  */}
                     {/* ================================================= */}
-
                     {aiResult.classificationSource === "cv" &&
                       aiResult.cvDetection?.detections?.map(
                         (detection, index) => {
@@ -282,20 +364,52 @@ export function AnalyzePage() {
                             y2,
                           ] = detection.bbox;
 
-                          const left =
+                          /*
+                           * Convert YOLO coordinates from the
+                           * original image coordinate system
+                           * into percentages of the original image.
+                           */
+                          const relativeLeft =
                             (x1 / imageDimensions.width) * 100;
 
-                          const top =
+                          const relativeTop =
                             (y1 / imageDimensions.height) * 100;
 
-                          const width =
+                          const relativeWidth =
                             ((x2 - x1) /
                               imageDimensions.width) *
                             100;
 
-                          const height =
+                          const relativeHeight =
                             ((y2 - y1) /
                               imageDimensions.height) *
+                            100;
+
+                          /*
+                           * Map the original-image percentages
+                           * into the actual object-contain
+                           * rendered image rectangle.
+                           */
+                          const left =
+                            imageGeometry.left +
+                            (relativeLeft *
+                              imageGeometry.width) /
+                              100;
+
+                          const top =
+                            imageGeometry.top +
+                            (relativeTop *
+                              imageGeometry.height) /
+                              100;
+
+                          const width =
+                            (relativeWidth *
+                              imageGeometry.width) /
+                            100;
+
+                          const height =
+                            (relativeHeight *
+                              imageGeometry.height) /
                             100;
 
                           return (

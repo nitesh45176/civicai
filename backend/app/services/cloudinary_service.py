@@ -4,7 +4,7 @@ from fastapi import UploadFile, HTTPException, status
 from app.core.config import settings
 from app.utils.validators import validate_image_file, ALLOWED_IMAGE_MIME_TYPES
 from io import BytesIO
-from PIL import Image
+from PIL import Image, ImageOps
 
 # Configure Cloudinary if credentials provided
 is_cloudinary_configured = bool(
@@ -36,9 +36,10 @@ async def upload_image(file: UploadFile) -> str:
     # Read content and check size
     contents = await file.read()
 
-    # Convert browser formats such as AVIF/WebP to JPEG
+    # Convert browser formats such as AVIF/WebP to JPEG with EXIF orientation correction
     try:
         image = Image.open(BytesIO(contents))
+        image = ImageOps.exif_transpose(image)
         image = image.convert("RGB")
 
         output = BytesIO()
