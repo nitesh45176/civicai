@@ -7,7 +7,7 @@
 
 Instead of navigating complicated municipal forms or figuring out which department is responsible for an issue, a citizen can simply **capture or upload a photo**, provide their location, and submit a complaint.
 
-CivicAI combines **computer vision, multimodal AI, deterministic authority routing, complaint tracking, and automated SLA escalation** into one workflow.
+CivicAI combine **computer vision, multimodal AI, deterministic authority routing, complaint tracking, and automated SLA escalation** into one workflow.
 
 ### How it works
 
